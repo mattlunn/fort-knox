@@ -1,0 +1,25 @@
+{
+	"db_driver": "ssh",
+	"db_settings": {
+		"ssh": {
+			"host": "192.168.0.1",
+			"port": 22,
+			"username": "root",
+			"password": "password1"
+		},
+		"db": {
+			"database_name": "fortknox",
+			"database_user": "fortknox",
+			"database_password": "fortknox",
+			"sequelize_options": {
+				"host": "localhost",
+				"dialect": "mysql",
+				"pool": {
+					"max": 5,
+					"min": 0,
+					"idle": 10000
+				}
+			}
+		}
+	}
+}
