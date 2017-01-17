@@ -1,9 +1,16 @@
 var express = require('express');
 var moment = require('moment');
+var path = require('path');
 var app = express();
 var port = 3001;
 
 require('./db').then(function (db) {
+	app.use(express.static('../client/build'));
+
+	app.get('/', function (req, res) {
+		res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+	});
+
 	app.get('/motion', function (req, res) {
 		var name = req.params.camera || 'default';
 

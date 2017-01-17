@@ -3,4 +3,4 @@ npm-debug.log
 
 /server/config.json
 /client/coverage
-/server/build
+/client/build
