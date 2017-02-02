@@ -12,7 +12,7 @@ class Day extends Component {
 		return (
 			<div className="row">
 				<div className="col-md-2">
-					{moment(this.props.day.date).format('dddd Mo')}
+					{moment(this.props.day.date).format('dddd Do')}
 				</div>
 				<div className="col-md-10">
 					<div className="progress">

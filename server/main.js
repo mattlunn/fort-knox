@@ -1,14 +1,49 @@
 var express = require('express');
+var session = require('express-session');
+var bodyParser = require('body-parser');
 var moment = require('moment');
 var path = require('path');
+var config = require('./config');
 var app = express();
 var port = 3001;
 
 require('./db').then(function (db) {
 	app.use(express.static('../client/build'));
+	app.use(session({
+		secret: config.cookie_secret,
+		saveUninitialized: false,
+		resave: false
+	}));
+
+	app.use(bodyParser.urlencoded({ extended: false }));
 
 	app.get('/', function (req, res) {
-		res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+		res.sendFile(path.join(__dirname, '../client/build/', 'index.html'));
+	});
+
+	function authenticate(req, res, next) {
+		if (!req.session.userId) {
+			res.status(401).end();
+		} else {
+			next();
+		}
+	}
+
+	app.post('/authenticate', function (req, res) {
+		if (!['username', 'password'].every(x => typeof req.body[x] === 'string')) {
+			res.status(400).end();
+		} else {
+			db.User.findByCredentials(req.body.username, req.body.password).then(function (user) {
+				req.session.userId = user.id;
+				res.json({
+					username: user.username,
+					firstName: user.firstName,
+					lastName: user.lastName
+				}).end();
+			}, function () {
+				res.status(400).end();
+			});
+		}
 	});
 
 	app.get('/motion', function (req, res) {
@@ -34,29 +69,32 @@ require('./db').then(function (db) {
 		});
 	});
 
-	app.post('/arm', function (req, res) {
+	app.post('/arm', authenticate, function (req, res) {
 		var now = moment();
-		var arm = req.params.arm === 'true';
+		var arm = req.body.arm === 'true';
 
 		db.Arming.findOne({
-			order: [['from', 'DESC']]
+			order: [['start', 'DESC']]
 		}).then(function (arming) {
-			if (arm && (!arming || moment(arming.to).isBefore(now))) {
+			// If arming and there is either no arming, or the latest arming is already over, then create a new one..
+			if (arm && (!arming || moment(arming.end).isBefore(now))) {
 				return db.Arming.build({
-					from: new Date()
+					start: new Date()
 				}).save();
-			} else if (!arm && arming && (!arming.to || moment(arming.to).isAfter(now))) {
-				arming.to = new Date();
+
+			// Otherwise, if we're ending arming and there is an arming, and either end isn't set or is set till later...
+			} else if (!arm && arming && (!arming.end || moment(arming.end).isAfter(now))) {
+				arming.end = new Date();
 				return arming.save();
 			}
 		}).then(function () {
-			res.end();
+			res.json(arm).end();
 		}, function (err) {
 			res.status(500).end(err);
 		});
 	});
 
-	app.get('/history', function (req, res) {
+	app.get('/history', authenticate, function (req, res) {
 		function groupEvents(events) {
 			var ret = [];
 
@@ -118,7 +156,7 @@ require('./db').then(function (db) {
 			var [events, armings] = results;
 			var ret = [];
 
-			for (var i=0;i<7;i++) {
+			for (var i=0;i<14;i++) {
 				var date = moment().startOf('day').subtract(i, 'days');
 
 				ret.push({

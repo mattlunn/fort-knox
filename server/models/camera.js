@@ -3,12 +3,10 @@ var Sequelize = require('sequelize');
 module.exports.create = function (sequelize) {
 	return sequelize.define('camera', {
 		friendlyName: {
-			type: Sequelize.STRING,
-			field: 'friendly_name'
+			type: Sequelize.STRING
 		},
 		machineName: {
-			type: Sequelize.STRING,
-			field: 'machineName'
+			type: Sequelize.STRING
 		}
 	});
 };

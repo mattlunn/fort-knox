@@ -10,15 +10,11 @@ module.exports = new Promise(function (resolve, reject) {
 		Event.belongsTo(Camera, { foreign_key: 'camera_id' });
 		Camera.hasMany(Event, { foreign_key: 'camera_id' });
 
-		sequelize.sync().then(function () {
-			resolve({
-				User: User,
-				Event: Event,
-				Camera: Camera,
-				Arming: Arming
-			});
-		}, function () {
-			reject();
+		resolve({
+			User: User,
+			Event: Event,
+			Camera: Camera,
+			Arming: Arming
 		});
 	});
 });
