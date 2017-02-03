@@ -69,9 +69,9 @@ require('./db').then(function (db) {
 		});
 	});
 
-	app.post('/arm', authenticate, function (req, res) {
+	app.post('/armed', authenticate, function (req, res) {
 		var now = moment();
-		var arm = req.body.arm === 'true';
+		var arm = req.body.armed === 'true';
 
 		db.Arming.findOne({
 			order: [['start', 'DESC']]
@@ -89,6 +89,18 @@ require('./db').then(function (db) {
 			}
 		}).then(function () {
 			res.json(arm).end();
+		}, function (err) {
+			res.status(500).end(err);
+		});
+	});
+
+	app.get('/armed', authenticate, function (req, res) {
+		var now = moment();
+
+		db.Arming.findOne({
+			order: [['start', 'DESC']]
+		}).then(function (arming) {
+			res.json(arming && (!arming.end || moment(arming.end).isAfter(now))).end();
 		}, function (err) {
 			res.status(500).end(err);
 		});

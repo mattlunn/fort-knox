@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import Day from './Day';
-import api from '../api';
+import session from '../session';
 import './Home.css';
 
 class Home extends Component {
@@ -17,7 +17,7 @@ class Home extends Component {
 	}
 
 	init() {
-		api.get('/history').then((data) => {
+		session.getHistory().then((data) => {
 			this.setState({
 				days: data
 			});

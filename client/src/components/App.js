@@ -1,13 +1,25 @@
 import React, { Component } from 'react';
-import api from '../api';
+import session from '../session';
 import './App.css';
 
 class App extends Component {
 	constructor(props) {
 		super(props);
 
-		this.state = { armed: true };
+		this.state = { showLoggedInNavComponents: false };
 		this.toggleArming = this.toggleArming.bind(this);
+
+		session.getArmedState().then((armed) => {
+			this.setState({
+				armed: armed
+			});
+		});
+
+		session.onLoginStateChanged((isLoggedIn) => {
+			this.setState({
+				showLoggedInNavComponents: isLoggedIn
+			});
+		});
 	}
 
 	render() {
@@ -18,12 +30,12 @@ class App extends Component {
 
 						<ul className="navbar-nav mr-auto"></ul>
 
-						<form className="form-inline my-2 my-lg-0" id="arming-form">
-							<button className={ 'btn btn-sm ' + (this.state.armed ? 'btn-success' : 'btn-danger')} onClick={this.toggleArming} type="button" >{ this.state.armed ? 'Unarmed' : 'Armed'}</button>
+						{this.state.showLoggedInNavComponents && <form className="form-inline my-2 my-lg-0" id="arming-form">
+							<button className={ 'btn btn-sm ' + (this.state.armed ? 'btn-danger' : 'btn-success')} onClick={this.toggleArming} type="button" >{ this.state.armed ? 'Armed' : 'Unarmed'}</button>
 							&nbsp;
-							<input type="checkbox" className="toggler" id="toggle" checked={!this.state.armed} onClick={this.toggleArming} />
+							<input type="checkbox" className="toggler" id="toggle" defaultChecked={this.state.armed} onClick={this.toggleArming} />
 							<label htmlFor="toggle"></label>
-						</form>
+						</form>}
 				</nav>
 
 				{this.props.children}
@@ -32,13 +44,13 @@ class App extends Component {
 	}
 
 	toggleArming() {
+		var newState = !this.state.armed;
+
 		this.setState({
-			armed: !this.state.armed
+			armed: newState
 		});
 
-		api.post('/arm', {
-			arm: this.state.armed
-		});
+		session.setArmedState(newState);
 	}
 }
 

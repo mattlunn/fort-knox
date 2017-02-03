@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import './Login.css';
-import api from '../api';
+import session from '../session';
 
 class Login extends Component {
 	constructor(props, router) {
@@ -18,10 +18,7 @@ class Login extends Component {
 	doLogin(e) {
 		e.preventDefault();
 
-		api.post('/authenticate', {
-			username: this.state.username,
-			password: this.state.password
-		}).then(() => {
+		session.login(this.state.username, this.state.password).then(() => {
 			this.context.router.push('/');
 		}, () => {
 			this.setState({
