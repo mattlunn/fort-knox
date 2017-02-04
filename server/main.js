@@ -1,3 +1,4 @@
+var util = require('util');
 var express = require('express');
 var session = require('express-session');
 var bodyParser = require('body-parser');
@@ -7,7 +8,12 @@ var config = require('./config');
 var app = express();
 var port = 3001;
 
-require('./db').then(function (db) {
+Promise.all([
+	require('./notifiers/twilio'),
+	require('./db')
+]).then((promises) => {
+	var [twilio, db] = promises;
+
 	app.use(express.static('../client/build'));
 	app.use(session({
 		secret: config.cookie_secret,
@@ -46,27 +52,66 @@ require('./db').then(function (db) {
 		}
 	});
 
-	app.get('/motion', function (req, res) {
+	app.get('/motion', function (req, res, next) {
 		var name = req.params.camera || 'default';
+		var now = moment();
 
-		db.Camera.findOne({
-			machineName: name
-		}).then(function (camera) {
-			return camera || db.Camera.build({
-				machineName: name,
-				friendlyName: name
-			}).save();
-		}).then(function (camera) {
-			return db.Event.build({
-				timestamp: new Date(),
-				cameraId: camera.id
-			}).save();
-		}).then(function () {
+		Promise.all([
+			// Create an event...
+			db.Camera.findOne({
+				where: {
+					machineName: name
+				}
+			}).then(function (camera) {
+				return camera || db.Camera.build({
+					machineName: name,
+					friendlyName: name
+				}).save();
+			}).then(function (camera) {
+				return db.Event.build({
+					timestamp: now.toDate(),
+					cameraId: camera.id
+				}).save();
+			}),
+
+			// Figure out if we're armed or not. If so, load the users which need to be
+			// notified...
+			db.Arming.findOne({
+				order: [['start', 'DESC']]
+			}).then(function (arming) {
+				if (arming && (!arming.end || moment(arming.end).isAfter(now))) {
+					return db.User.findAll({
+						where: {
+							mobileNumber: {
+								$ne: null
+							}
+						}
+					});
+				}
+			})
+		]).then(function (promises) {
+			var [event, users] = promises;
+
+			return Promise.all(users.map((user) => {
+				return twilio.notify(
+					user.mobileNumber,
+					util.format(
+						'Hi %s. Sorry to be the bearer of bad news, but your device "%s" has detected motion at %s, soooooo, you might be getting burgled...',
+						user.firstName,
+						name,
+						now.format('HH:mm:ss')
+					)
+				).then(() => {
+					return db.Notification.build({
+						userId: user.id,
+						eventId: event.id,
+						type: 'mobile'
+					}).save();
+				});
+			}));
+		}).then(() => {
 			res.end();
-		}, function (err) {
-			console.log(err);
-			res.status(500).end(err);
-		});
+		}).catch(next);
 	});
 
 	app.post('/armed', authenticate, function (req, res) {
@@ -187,9 +232,26 @@ require('./db').then(function (db) {
 		});
 	});
 
+	app.use(function (err, req, res, next) {
+		var error = 'An unknown error has occurred';
+
+		if (err instanceof Error) {
+			console.log(err.stack);
+
+			error = err.message;
+		} else if (typeof err === 'string') {
+			error = err;
+		} else if (typeof err === 'object' && err !== null) {
+			error = err.message;
+		}
+
+		console.log(error);
+		res.status(500).send(error);
+	})
+
 	app.listen(port, function () {
 		console.log('Example app listening on port ' + port + '!');
 	});
-}, function (err) {
+}, (err) => {
 	console.log(err);
 });

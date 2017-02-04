@@ -14,6 +14,9 @@ module.exports.create = function (sequelize) {
 		},
 		password: {
 			type: Sequelize.STRING
+		},
+		mobileNumber: {
+			type: Sequelize.STRING
 		}
 	});
 
