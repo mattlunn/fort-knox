@@ -88,6 +88,8 @@ Promise.all([
 						}
 					});
 				}
+
+				return [];
 			})
 		]).then(function (promises) {
 			var [event, users] = promises;
