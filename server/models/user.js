@@ -1,5 +1,4 @@
 var Sequelize = require('sequelize');
-var bcrypt = require('bcrypt');
 
 module.exports.create = function (sequelize) {
 	var user = sequelize.define('user', {
@@ -26,7 +25,7 @@ module.exports.create = function (sequelize) {
 				email: email
 			}
 		}).then(user => {
-			if (user && bcrypt.compareSync(password, user.password)) {
+			if (user && require('bcrypt').compareSync(password, user.password)) {
 				return user;
 			}
 

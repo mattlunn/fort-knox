@@ -24,5 +24,7 @@ module.exports = new Promise(function (resolve, reject) {
 			Arming: Arming,
 			Notification: Notification
 		});
+	}).catch((err) => {
+		reject(err);
 	});
 });

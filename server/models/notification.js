@@ -1,5 +1,4 @@
 var Sequelize = require('sequelize');
-var bcrypt = require('bcrypt');
 
 module.exports.create = function (sequelize) {
 	return sequelize.define('notification', {
