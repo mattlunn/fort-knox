@@ -4,6 +4,7 @@ module.exports = new Promise(function (resolve, reject) {
 	require('./drivers/' + config.db_driver).init(config.db_settings).then(function (sequelize) {
 		var User = require('./models/user').create(sequelize);
 		var Event = require('./models/event').create(sequelize);
+		var Recording = require('./models/recording').create(sequelize);
 		var Camera = require('./models/camera').create(sequelize);
 		var Arming = require('./models/arming').create(sequelize);
 		var Notification = require('./models/notification').create(sequelize);
@@ -17,12 +18,15 @@ module.exports = new Promise(function (resolve, reject) {
 		Notification.belongsTo(User, { foreign_key: 'userId'});
 		User.hasMany(Notification, { foreign_key: 'userId'});
 
+		Recording.belongsTo(Event, { foreign_key: 'userId'});
+
 		resolve({
 			User: User,
 			Event: Event,
 			Camera: Camera,
 			Arming: Arming,
-			Notification: Notification
+			Notification: Notification,
+			Recording: Recording
 		});
 	}).catch((err) => {
 		reject(err);

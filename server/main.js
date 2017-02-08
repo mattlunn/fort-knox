@@ -4,15 +4,17 @@ var session = require('express-session');
 var bodyParser = require('body-parser');
 var moment = require('moment');
 var path = require('path');
+var _ = require('underscore');
 var config = require('./config');
 var app = express();
 var port = 3001;
 
 Promise.all([
 	require('./notifiers/twilio'),
-	require('./db')
+	require('./db'),
+	require('./synology').init(config.synology.host, config.synology.port, config.synology.username, config.synology.password)
 ]).then((promises) => {
-	var [twilio, db] = promises;
+	var [twilio, db, synology] = promises;
 
 	app.use(express.static('../client/build'));
 	app.use(session({
@@ -53,7 +55,7 @@ Promise.all([
 	});
 
 	app.get('/motion', function (req, res, next) {
-		var name = req.params.camera || 'default';
+		var name = req.query.camera || 'default';
 		var now = moment();
 
 		Promise.all([
@@ -94,23 +96,65 @@ Promise.all([
 		]).then(function (promises) {
 			var [event, users] = promises;
 
-			return Promise.all(users.map((user) => {
-				return twilio.notify(
-					user.mobileNumber,
-					util.format(
-						'Hi %s. Sorry to be the bearer of bad news, but your device "%s" has detected motion at %s, soooooo, you might be getting burgled...',
-						user.firstName,
-						name,
-						now.format('HH:mm:ss')
-					)
-				).then(() => {
-					return db.Notification.build({
-						userId: user.id,
-						eventId: event.id,
-						type: 'mobile'
-					}).save();
-				});
-			}));
+			return Promise.all([
+				synology.request('SYNO.SurveillanceStation.Recording', 'List', {
+					fromTime: moment(now).startOf('day').format('X'),
+					toTime: now.format('X')
+				}, true, 5).then((recordings) => {
+					const recordingDurationMs  = 10000;
+					const recordingStart = moment(now).subtract(recordingDurationMs, 'milliseconds');
+
+					var recording = _.find(recordings.data.events, (recording) => recording.camera_name === name
+						&& moment.unix(recording.startTime).isBefore(recordingStart)
+						&& moment.unix(recording.stopTime).isAfter(recordingStart));
+
+					if (recording === undefined) {
+						return null;
+					}
+
+					return synology.request('SYNO.SurveillanceStation.Recording', 'Download', {
+						id: recording.id,
+						offsetTimeMs: (recordingStart.format('X') - recording.startTime) * 1000,
+						playTimeMs: recordingDurationMs
+					}, false).then(function () {
+						console.log(arguments);
+						return arguments[0];
+					}, function () {
+						console.log(arguments);
+					});
+				}).then((recording) => {
+					if (recording !== null) {
+						return db.Recording.build({
+							eventId: event.id,
+							recording: recording,
+							start: moment(now.subtract(10, 's')).toDate(),
+							end: now.toDate()
+						}).save().then(() => {
+							return event;
+						});
+					} else {
+						return event;
+					}
+				}),
+
+				Promise.all(users.map((user) => {
+					return false && twilio.notify(
+						user.mobileNumber,
+						util.format(
+							'Hi %s. Sorry to be the bearer of bad news, but your device "%s" has detected motion at %s, soooooo, you might be getting burgled...',
+							user.firstName,
+							name,
+							now.format('HH:mm:ss')
+						)
+					).then(() => {
+						return db.Notification.build({
+							userId: user.id,
+							eventId: event.id,
+							type: 'mobile'
+						}).save();
+					})
+				}))
+			]);
 		}).then(() => {
 			res.end();
 		}).catch(next);

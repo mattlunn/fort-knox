@@ -12,7 +12,7 @@ require('../drivers/' + config.db_driver).init(config.db_settings).then(function
 		migrations: {
 			pattern: /^\d+[\w-]+\.js$/,
 			params: [sequelize.getQueryInterface(), Sequelize],
-			path: '../migrations'
+			path: __dirname + '/../migrations'
 		}
 	});
 
