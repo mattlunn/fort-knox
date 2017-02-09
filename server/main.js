@@ -29,6 +29,47 @@ Promise.all([
 		res.sendFile(path.join(__dirname, '../client/build/', 'index.html'));
 	});
 
+	app.get('/recording/:id', authenticate, function (req, res, next) {
+		if (isNaN(Number(req.params.id)))
+			return next('route');
+
+		db.Recording.findOne({
+			where: {
+				id: Number(req.params.id)
+			}
+		}).then((recording) => {
+			if (recording === null)
+				return next('route');
+
+			var total = recording.recording.length;
+			var range = req.headers.range;
+
+			if (range) {
+				var positions = range.replace(/bytes=/, '').split('-');
+				var start = parseInt(positions[0], 10);
+				var end = (positions[1] ? parseInt(positions[1], 10) : total) - 1;
+				var chunksize = (end - start) + 1;
+
+				res.writeHead(206, {
+					'Content-Range': 'bytes ' + start + '-' + end + '/' + total,
+					'Accept-Ranges': 'bytes',
+					'Content-Length': chunksize,
+					'Content-Type': 'video/mp4'
+				});
+
+				res.end(recording.recording.slice(start, end));
+			} else  {
+				res.writeHead(200, {
+					'Accept-Ranges': 'bytes',
+					'Content-Length': total,
+					'Content-Type': 'video/mp4'
+				});
+
+				res.end(recording.recording);
+			}
+		});
+	});
+
 	function authenticate(req, res, next) {
 		if (!req.session.userId) {
 			res.status(401).end();
@@ -116,12 +157,7 @@ Promise.all([
 						id: recording.id,
 						offsetTimeMs: (recordingStart.format('X') - recording.startTime) * 1000,
 						playTimeMs: recordingDurationMs
-					}, false).then(function () {
-						console.log(arguments);
-						return arguments[0];
-					}, function () {
-						console.log(arguments);
-					});
+					}, false);
 				}).then((recording) => {
 					if (recording !== null) {
 						return db.Recording.build({
@@ -138,7 +174,7 @@ Promise.all([
 				}),
 
 				Promise.all(users.map((user) => {
-					return false && twilio.notify(
+					return twilio.notify(
 						user.mobileNumber,
 						util.format(
 							'Hi %s. Sorry to be the bearer of bad news, but your device "%s" has detected motion at %s, soooooo, you might be getting burgled...',
