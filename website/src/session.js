@@ -8,7 +8,7 @@ class Session {
 	}
 
 	login(username, password) {
-		return jQuery.post('/authenticate', {
+		return jQuery.post('/api/authenticate', {
 			username: username,
 			password: password
 		}).then(() => {
@@ -17,15 +17,15 @@ class Session {
 	}
 
 	getHistory() {
-		return this.proxyLoginStatus(jQuery.get('/history'));
+		return this.proxyLoginStatus(jQuery.get('/api/history'));
 	}
 
 	getArmedState() {
-		return this.proxyLoginStatus(jQuery.get('/armed'));
+		return this.proxyLoginStatus(jQuery.get('/api/armed'));
 	}
 
 	setArmedState(armed) {
-		return this.proxyLoginStatus(jQuery.post('/armed', {
+		return this.proxyLoginStatus(jQuery.post('/api/armed', {
 			armed: armed
 		}));
 	}

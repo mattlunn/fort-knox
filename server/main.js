@@ -30,11 +30,11 @@ Promise.all([
 		resave: false
 	}));
 
-	app.use('/static', express.static('../client/build/static'));
+	app.use('/static', express.static('../website/build/static'));
 	app.use('/api', api);
 
 	app.use(function (req, res) {
-		res.sendFile(path.join(__dirname, '../client/build/', 'index.html'));
+		res.sendFile(path.join(__dirname, '../website/build/', 'index.html'));
 	});
 
 	api.use(bodyParser.urlencoded({ extended: false }));
