@@ -3,33 +3,63 @@ var express = require('express');
 var session = require('express-session');
 var bodyParser = require('body-parser');
 var moment = require('moment');
+var multer = require('multer');
 var path = require('path');
 var _ = require('underscore');
 var config = require('./config');
 var app = express();
-var port = 3001;
+var api = express();
 
 Promise.all([
 	require('./notifiers/twilio'),
 	require('./db'),
-	require('./synology').init(config.synology.host, config.synology.port, config.synology.username, config.synology.password)
 ]).then((promises) => {
-	var [twilio, db, synology] = promises;
+	var [twilio, db] = promises;
 
-	app.use(express.static('../client/build'));
+	function authenticate(req, res, next) {
+		if (req.session.userId || req.query.token === config.api_key) {
+			next();
+		} else {
+			res.status(401).end();
+		}
+	}
+
 	app.use(session({
 		secret: config.cookie_secret,
 		saveUninitialized: false,
 		resave: false
 	}));
 
-	app.use(bodyParser.urlencoded({ extended: false }));
+	app.use('/static', express.static('../client/build/static'));
+	app.use('/api', api);
 
-	app.get('/', function (req, res) {
+	app.use(function (req, res) {
 		res.sendFile(path.join(__dirname, '../client/build/', 'index.html'));
 	});
 
-	app.get('/recording/:id', authenticate, function (req, res, next) {
+	api.use(bodyParser.urlencoded({ extended: false }));
+	api.use(bodyParser.urlencoded({ extended: false }));
+
+	api.post('/authenticate', function (req, res) {
+		if (!['username', 'password'].every(x => typeof req.body[x] === 'string')) {
+			res.status(400).end();
+		} else {
+			db.User.findByCredentials(req.body.username, req.body.password).then(function (user) {
+				req.session.userId = user.id;
+				res.json({
+					username: user.username,
+					firstName: user.firstName,
+					lastName: user.lastName
+				}).end();
+			}, function () {
+				res.status(400).end();
+			});
+		}
+	});
+
+	api.use(authenticate);
+
+	api.get('/recording/:id', authenticate, function (req, res, next) {
 		if (isNaN(Number(req.params.id)))
 			return next('route');
 
@@ -70,34 +100,9 @@ Promise.all([
 		});
 	});
 
-	function authenticate(req, res, next) {
-		if (!req.session.userId) {
-			res.status(401).end();
-		} else {
-			next();
-		}
-	}
-
-	app.post('/authenticate', function (req, res) {
-		if (!['username', 'password'].every(x => typeof req.body[x] === 'string')) {
-			res.status(400).end();
-		} else {
-			db.User.findByCredentials(req.body.username, req.body.password).then(function (user) {
-				req.session.userId = user.id;
-				res.json({
-					username: user.username,
-					firstName: user.firstName,
-					lastName: user.lastName
-				}).end();
-			}, function () {
-				res.status(400).end();
-			});
-		}
-	});
-
-	app.get('/motion', function (req, res, next) {
-		var name = req.query.camera || 'default';
-		var now = moment();
+	api.post('/event', multer({ storage: multer.memoryStorage() }).single('recording'), function (req, res, next) {
+		var name = req.body.device || 'default';
+		var now = req.body.timestamp ? moment.unix(req.body.timestamp) : moment();
 
 		Promise.all([
 			// Create an event...
@@ -138,40 +143,16 @@ Promise.all([
 			var [event, users] = promises;
 
 			return Promise.all([
-				synology.request('SYNO.SurveillanceStation.Recording', 'List', {
-					fromTime: moment(now).startOf('day').format('X'),
-					toTime: now.format('X')
-				}, true, 5).then((recordings) => {
-					const recordingDurationMs  = 10000;
-					const recordingStart = moment(now).subtract(recordingDurationMs, 'milliseconds');
-
-					var recording = _.find(recordings.data.events, (recording) => recording.camera_name === name
-						&& moment.unix(recording.startTime).isBefore(recordingStart)
-						&& moment.unix(recording.stopTime).isAfter(recordingStart));
-
-					if (recording === undefined) {
-						return null;
-					}
-
-					return synology.request('SYNO.SurveillanceStation.Recording', 'Download', {
-						id: recording.id,
-						offsetTimeMs: (recordingStart.format('X') - recording.startTime) * 1000,
-						playTimeMs: recordingDurationMs
-					}, false);
-				}).then((recording) => {
-					if (recording !== null) {
+				(function () {
+					if (req.file) {
 						return db.Recording.build({
 							eventId: event.id,
-							recording: recording,
+							recording: req.file.buffer,
 							start: moment(now.subtract(10, 's')).toDate(),
 							end: now.toDate()
-						}).save().then(() => {
-							return event;
-						});
-					} else {
-						return event;
+						}).save();
 					}
-				}),
+				}()),
 
 				Promise.all(users.map((user) => {
 					return twilio.notify(
@@ -196,7 +177,7 @@ Promise.all([
 		}).catch(next);
 	});
 
-	app.post('/armed', authenticate, function (req, res) {
+	api.post('/armed', function (req, res) {
 		var now = moment();
 		var arm = req.body.armed === 'true';
 
@@ -221,7 +202,7 @@ Promise.all([
 		});
 	});
 
-	app.get('/armed', authenticate, function (req, res) {
+	api.get('/armed', function (req, res) {
 		var now = moment();
 
 		db.Arming.findOne({
@@ -233,7 +214,7 @@ Promise.all([
 		});
 	});
 
-	app.get('/history', authenticate, function (req, res) {
+	api.get('/history', function (req, res) {
 		function groupEvents(events) {
 			var ret = [];
 
@@ -331,8 +312,8 @@ Promise.all([
 		res.status(500).send(error);
 	})
 
-	app.listen(port, function () {
-		console.log('Example app listening on port ' + port + '!');
+	app.listen(config.port, function () {
+		console.log('Example app listening on port ' + config.port + '!');
 	});
 }, (err) => {
 	console.log(err);

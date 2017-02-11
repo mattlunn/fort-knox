@@ -2,5 +2,5 @@ node_modules
 npm-debug.log
 
 /server/config.json
-/client/coverage
-/client/build
+/website/coverage
+/website/build
