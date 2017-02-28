@@ -1,7 +1,7 @@
 var Sequelize = require('sequelize');
 var config = require('../config');
 var prompt = require('prompt');
-var bcrypt = require('bcrypt-nodejs');
+var bcrypt = require('bcrypt');
 var util = require('util');
 
 require('../db').then((db) => {
@@ -25,10 +25,7 @@ require('../db').then((db) => {
 				hidden: true,
 				required: true,
 				before: function (value) {
-					var salt = bcrypt.genSaltSync(15);
-					var hash = bcrypt.hashSync(value, salt);
-
-					return hash;
+					return bcrypt.hashSync(value, 15);
 				}
 			},
 

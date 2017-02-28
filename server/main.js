@@ -32,7 +32,7 @@ Promise.all([
 	}));
 
 	app.use('/static', express.static('../website/build/static'));
-	app.use('/recording', authenticate, express.static('../website/build/static'));
+	app.use('/recording', authenticate, express.static(config.recordings_directory));
 	app.use('/api', api);
 
 	app.use(function (req, res) {

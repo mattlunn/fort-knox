@@ -11,8 +11,18 @@ class Home extends Component {
 	}
 
 	render() {
-		return (<div className="container-fluid" id="history-container">
-			{this.state.days.map((x, i) => (<Day key={i} day={x} />))}
+		return (<div className="container-fluid" id="page-container">
+			<ul className="nav nav-tabs">
+				<li className="nav-item">
+					<a className="nav-link active" href="/#/timeline">Timeline</a>
+				</li>
+				<li className="nav-item">
+					<a className="nav-link" href="/#/list">List</a>
+				</li>
+			</ul>
+			<div id="history-container">
+				{this.state.days.map((x, i) => (<Day key={i} day={x} />))}
+			</div>
 		</div>);
 	}
 
