@@ -32,5 +32,6 @@
 	"cookie_secret": "randomString",
 
 	"port": 3001,
-	"api_key": "secureString"
+	"api_key": "secureString",
+	"recordings_directory": "../../recordings"
 }

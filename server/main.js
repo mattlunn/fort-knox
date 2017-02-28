@@ -1,4 +1,5 @@
 var util = require('util');
+var uuid = require('uuid/v4');
 var express = require('express');
 var session = require('express-session');
 var bodyParser = require('body-parser');
@@ -31,13 +32,13 @@ Promise.all([
 	}));
 
 	app.use('/static', express.static('../website/build/static'));
+	app.use('/recording', authenticate, express.static('../website/build/static'));
 	app.use('/api', api);
 
 	app.use(function (req, res) {
 		res.sendFile(path.join(__dirname, '../website/build/', 'index.html'));
 	});
 
-	api.use(bodyParser.urlencoded({ extended: false }));
 	api.use(bodyParser.urlencoded({ extended: false }));
 
 	api.post('/authenticate', function (req, res) {
@@ -59,48 +60,12 @@ Promise.all([
 
 	api.use(authenticate);
 
-	api.get('/recording/:id', authenticate, function (req, res, next) {
-		if (isNaN(Number(req.params.id)))
-			return next('route');
-
-		db.Recording.findOne({
-			where: {
-				id: Number(req.params.id)
-			}
-		}).then((recording) => {
-			if (recording === null)
-				return next('route');
-
-			var total = recording.recording.length;
-			var range = req.headers.range;
-
-			if (range) {
-				var positions = range.replace(/bytes=/, '').split('-');
-				var start = parseInt(positions[0], 10);
-				var end = (positions[1] ? parseInt(positions[1], 10) : total) - 1;
-				var chunksize = (end - start) + 1;
-
-				res.writeHead(206, {
-					'Content-Range': 'bytes ' + start + '-' + end + '/' + total,
-					'Accept-Ranges': 'bytes',
-					'Content-Length': chunksize,
-					'Content-Type': 'video/mp4'
-				});
-
-				res.end(recording.recording.slice(start, end));
-			} else  {
-				res.writeHead(200, {
-					'Accept-Ranges': 'bytes',
-					'Content-Length': total,
-					'Content-Type': 'video/mp4'
-				});
-
-				res.end(recording.recording);
-			}
-		});
-	});
-
-	api.post('/event', multer({ storage: multer.memoryStorage() }).single('recording'), function (req, res, next) {
+	api.post('/event', multer({ storage: multer.diskStorage({
+		destination: config.recordings_directory,
+		filename: function (req, file, cb) {
+			cb(null, uuid() + '.mp4');
+		}
+	}) }).single('recording'), function (req, res, next) {
 		var name = req.body.device || 'default';
 		var now = req.body.timestamp ? moment.unix(req.body.timestamp) : moment();
 
@@ -147,7 +112,7 @@ Promise.all([
 					if (req.file) {
 						return db.Recording.build({
 							eventId: event.id,
-							recording: req.file.buffer,
+							recording: req.file.filename,
 							start: moment(now.subtract(10, 's')).toDate(),
 							end: now.toDate()
 						}).save();
