@@ -26,7 +26,8 @@ class App extends Component {
 		return (
 			<div>
 				<nav className="navbar navbar-toggleable-md navbar-inverse bg-inverse">
-					<a className="navbar-brand" href="#">Fort Knox</a>
+					<div className="container">
+						<a className="navbar-brand" href="#">Fort Knox</a>
 
 						<ul className="navbar-nav mr-auto"></ul>
 
@@ -36,6 +37,7 @@ class App extends Component {
 							<input type="checkbox" className="toggler" id="toggle" defaultChecked={this.state.armed} onClick={this.toggleArming} />
 							<label htmlFor="toggle"></label>
 						</form>}
+					</div>
 				</nav>
 
 				{this.props.children}

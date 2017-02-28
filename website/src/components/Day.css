@@ -1,0 +1,16 @@
+div.day {
+	margin-top: 30px;
+}
+
+div.day li.day-activity {
+	padding: 0.25em 0.5em;
+}
+
+.timestamp {
+	margin-top: -4px;
+}
+
+span.badge.badge-plain {
+	color: #000;
+	font-weight: normal;
+}

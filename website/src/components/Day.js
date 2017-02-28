@@ -1,72 +1,43 @@
 import React, { Component } from 'react';
-import jQuery from 'jquery';
-import moment from 'moment';
+import './Day.css';
 
 class Day extends Component {
-	constructor(props) {
-		super(props);
-		this.key = 0;
-	}
-
 	render() {
-		return (
-			<div className="row">
-				<div className="col-md-2">
-					{moment(this.props.day.date).format('dddd Do')}
-				</div>
-				<div className="col-md-10">
-					<div className="progress">
-					  {this.dayEvents()}
-					</div>
-				</div>
+		return (<div className="day">
+			<h5>Sunday 27th February</h5>
+			<div className="card">
+				<ul className="list-group list-group-flush">
+					<li className="list-group-item flex-row justify-content-start day-activity">
+						<div className="p-2 timestamp"><span className="badge badge-success">09:01:24</span></div>
+						<div className="p-2">Motion detected by&nbsp;<strong>Lounge</strong></div>
+						<div className="ml-auto p-2"><a href="#" className="card-link">view</a> <a href="#" className="card-link">download</a></div>
+					</li>
+					<li className="list-group-item flex-row justify-content-start day-activity">
+						<div className="p-2 timestamp"><span className="badge badge-success">09:01:24</span></div>
+						<div className="p-2">Motion detected by&nbsp;<strong>Lounge</strong></div>
+						<div className="ml-auto p-2"><a href="#" className="card-link">view</a> <a href="#" className="card-link">download</a></div>
+					</li>
+					<li className="list-group-item flex-row justify-content-start day-activity">
+						<div className="p-2 timestamp"><span className="badge badge-plain">09:01:24</span></div>
+						<div className="p-2"><strong>Disarmed</strong> by&nbsp;Sandra</div>
+					</li>
+					<li className="list-group-item flex-row justify-content-start day-activity">
+						<div className="p-2 timestamp"><span className="badge badge-danger">09:01:24</span></div>
+						<div className="p-2">Motion detected by&nbsp;<strong>Lounge</strong></div>
+						<div className="ml-auto p-2"><a href="#" className="card-link">view</a> <a href="#" className="card-link">download</a></div>
+					</li>
+					<li className="list-group-item flex-row justify-content-start day-activity">
+						<div className="p-2 timestamp"><span className="badge badge-danger">09:01:24</span></div>
+						<div className="p-2">Motion detected by&nbsp;<strong>Lounge</strong></div>
+						<div className="ml-auto p-2"><a href="#" className="card-link">view</a> <a href="#" className="card-link">download</a></div>
+					</li>
+					<li className="list-group-item flex-row justify-content-start day-activity">
+						<div className="p-2 timestamp"><span className="badge badge-plain">09:01:24</span></div>
+						<div className="p-2"><strong>Armed</strong> by&nbsp;Matt</div>
+					</li>
+				</ul>
 			</div>
-		);
-	}
-
-	dayEvents() {
-		var ret = [];
-		var armings = this.props.day.armings;
-		var now = moment(this.props.day.date).startOf('day');
-
-		for (var i=0;i<armings.length;i++) {
-			var startOfArming = moment(armings[i].from);
-			var endOfArming = moment(armings[i].to);
-
-			ret = ret.concat(this.getEventsBetween(now, startOfArming, false));
-			ret = ret.concat(this.getEventsBetween(startOfArming, endOfArming, true));
-
-			now = endOfArming;
-		}
-
-		ret = ret.concat(this.getEventsBetween(now, moment(this.props.day.date).endOf('day'), false));
-
-
-		return ret;
-	}
-
-	getEventsBetween(from, to, isArmed) {
-		var events = this.props.day.events.filter(x => moment(x.from).isBetween(from, to, '[)') || moment(x.to).isBetween(from, to, '[)'));
-		var ret = [];
-
-		for (var i=0;i<events.length;i++) {
-			var startOfEvent = moment(events[i].from);
-			var endOfEvent = moment(events[i].to);
-
-			var modifiedStartOfEvent = startOfEvent.isBefore(from) ? from : startOfEvent;
-			var modifiedEndOfEvent = endOfEvent.isAfter(to) ? to : endOfEvent;
-
-			ret.push((<div className={'progress-bar ' + (isArmed ? 'bg-armed' : 'bg-unarmed')} key={++this.key} style={ { width: this.timespanToPercentage(from, modifiedStartOfEvent) } }></div>));
-			ret.push((<div className={'progress-bar ' + (isArmed ? 'bg-danger' : 'bg-success')} key={++this.key} style={ { width: this.timespanToPercentage(modifiedStartOfEvent, modifiedEndOfEvent) } }></div>));
-
-			from = modifiedEndOfEvent;
-		}
-
-		ret.push((<div className={'progress-bar ' + (isArmed ? 'bg-armed' : 'bg-unarmed')} key={++this.key} style={ { width: this.timespanToPercentage(from, to) } }></div>));
-		return ret;
-	}
-
-	timespanToPercentage(from, to) {
-		return (moment.duration(Math.abs(from.diff(to))).asMinutes() / 14.4) + '%';
+		</div>);
 	}
 }
 
