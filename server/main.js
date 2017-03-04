@@ -14,9 +14,8 @@ var api = express();
 Promise.all([
 	require('./notifiers/twilio'),
 	require('./db'),
-]).then((promises) => {
-	var [twilio, db] = promises;
-
+	require('./storage/' + config.storage_provider).init(config.storage_settings)
+]).then(([twilio, db, storage]) => {
 	function authenticate(req, res, next) {
 		if (req.session.userId || req.query.token === config.api_key) {
 			next();
@@ -32,8 +31,11 @@ Promise.all([
 	}));
 
 	app.use('/static', express.static('../website/build/static'));
-	app.use('/recording', authenticate, express.static(config.recordings_directory));
 	app.use('/api', api);
+
+	app.get('/favicon.ico', (req, res) => {
+		res.end();
+	});
 
 	app.use(function (req, res) {
 		res.sendFile(path.join(__dirname, '../website/build/', 'index.html'));
@@ -60,12 +62,24 @@ Promise.all([
 
 	api.use(authenticate);
 
-	api.post('/event', multer({ storage: multer.diskStorage({
-		destination: config.recordings_directory,
-		filename: function (req, file, cb) {
-			cb(null, uuid() + '.mp4');
-		}
-	}) }).single('recording'), function (req, res, next) {
+	api.get('/recording/:id', function (req, res, next) {
+		return db.Recording.findOne({
+			where: {
+				id: req.params.id
+			}
+		}).then((recording) => {
+			if (recording == null)
+				return Promise.reject('route');
+
+			return storage.serve(recording.recording);
+		}).then((file) => {
+			res
+				.type('video/mp4')
+				.end(file);
+		}).catch(next);
+	});
+
+	api.post('/event', multer({ storage: multer.memoryStorage() }).single('recording'), function (req, res, next) {
 		var name = req.body.device || 'default';
 		var now = req.body.timestamp ? moment.unix(req.body.timestamp) : moment();
 
@@ -110,12 +124,14 @@ Promise.all([
 			return Promise.all([
 				(function () {
 					if (req.file) {
-						return db.Recording.build({
-							eventId: event.id,
-							recording: req.file.filename,
-							start: moment(now.subtract(10, 's')).toDate(),
-							end: now.toDate()
-						}).save();
+						return storage.store(req.file.buffer).then((handle) => {
+							return db.Recording.build({
+								eventId: event.id,
+								recording: handle,
+								start: moment(now.subtract(10, 's')).toDate(),
+								end: now.toDate()
+							}).save();
+						});
 					}
 				}()),
 
@@ -258,6 +274,10 @@ Promise.all([
 			console.log(err);
 			res.status(500).end(err);
 		});
+	});
+
+	api.use(function (req, res, next) {
+		res.status(404).end();
 	});
 
 	app.use(function (err, req, res, next) {

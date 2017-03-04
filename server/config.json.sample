@@ -23,6 +23,14 @@
 		}
 	},
 
+	"storage_provider": "s3",
+	"storage_settings": {
+		"access_key_id": "SRGDGRDDHGDRDR",
+		"secret_access_key": "RGHGRIHGRDHGDRHIDGHDGRIHDGRIHDGRHIDRGHIDGR",
+		"bucket_name": "some-unique-bucket-name",
+		"bucket_region": "eu-west-2"
+	},
+
 	"twilio": {
 		"account_sid": "accountSid",
 		"auth_token": "authToken",
@@ -32,6 +40,5 @@
 	"cookie_secret": "randomString",
 
 	"port": 3001,
-	"api_key": "secureString",
-	"recordings_directory": "../../recordings"
+	"api_key": "secureString"
 }
