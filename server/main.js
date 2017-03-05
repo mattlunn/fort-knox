@@ -205,7 +205,7 @@ Promise.all([
 
 	api.get('/history', function (req, res, next) {
 		var amount = isNaN(Number(req.params.limit))
-			? 100
+			? 50
 			: Number(req.params.limit);
 
 		var timestamp = isNaN(Number(req.params.timestamp))
@@ -248,7 +248,7 @@ Promise.all([
 				})
 			]).then(([events, armings]) => {
 				var eventsTimestamps = events.map(x => moment(x.timestamp));
-				var armingsTimestamps = armings.reduce((ar, curr) => ar.push(moment(curr.start), moment(curr.end)) && ar, []);
+				var armingsTimestamps = armings.reduce((ar, curr) => ar.push(moment(curr.end || new Date()), moment(curr.start)) && ar, []);
 				var eventsIdx = eventsTimestamps.length -1;
 				var armingsIdx = armingsTimestamps.length - 1;
 				var max = Math.min(eventsTimestamps.length + armingsTimestamps.length, amount);
@@ -261,13 +261,13 @@ Promise.all([
 					}
 				}
 
-				events.splice(eventsIdx);
-				armings.splice(armingsIdx);
+				events.splice(eventsIdx + 1);
+				armings.splice(Math.floor(armingsIdx / 2) + 1);
 
 				return [
 					events,
 					armings,
-					armingsIdx % 2 === 1,
+					armingsIdx % 2 === 0,
 					eventsTimestamps[eventsIdx].isBefore(armingsTimestamps[armingsIdx]) ? eventsTimestamps[eventsIdx] : armingsTimestamps[armingsIdx]
 				];
 			}),
