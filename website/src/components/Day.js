@@ -14,8 +14,8 @@ class Day extends Component {
 			<h5 className="day-date">{moment(this.props.day).format('dddd Do MMMM')}</h5>
 			<div className="card">
 				<ul className="list-group list-group-flush">
-					{this.props.events.map((event) => (
-						<li key={event.id} className="list-group-item flex-row justify-content-start day-activity">
+					{this.props.events.map((event, i) => (
+						<li key={i} className="list-group-item flex-row justify-content-start day-activity">
 							<div className="p-2 timestamp"><span className={"badge " + this.generateClassNameForEvent(event)}>{moment(event.timestamp).format('HH:mm:ss')}</span></div>
 							<div className="p-2">{this.generateSummaryForEvent(event)}</div>
 							<div className="ml-auto p-2">{this.generateLinksForEvent(event)}</div>
