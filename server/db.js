@@ -9,12 +9,17 @@ module.exports = new Promise(function (resolve, reject) {
 		var Arming = require('./models/arming').create(sequelize);
 		var Notification = require('./models/notification').create(sequelize);
 
-		Event.belongsTo(Camera, { foreign_key: 'cameraId' });
-		Notification.belongsTo(Event, { foreign_key: 'eventId'});
-		Notification.belongsTo(User, { foreign_key: 'userId'});
-		Recording.belongsTo(Event, { foreign_key: 'eventId'});
-		Event.hasOne(Recording, { foreign_key: 'eventId'});
-		Arming.belongsTo(User, { foreign_key: 'userId' });
+		Event.belongsTo(Camera);
+		Notification.belongsTo(Event);
+		Notification.belongsTo(User);
+		Recording.belongsTo(Event);
+		Event.hasOne(Recording);
+
+		User.hasMany(Arming, { as: 'startedByUser', foreignKey: 'startedByUserId' });
+		User.hasMany(Arming, { as: 'endedByUser', foreignKey: 'endedByUserId' });
+
+		Arming.belongsTo(User, { as: 'startedByUser', foreignKey: 'startedByUserId' });
+		Arming.belongsTo(User, { as: 'endedByUser', foreignKey: 'endedByUserId' });
 
 		resolve({
 			User: User,

@@ -76,7 +76,7 @@ Promise.all([
 				res.type('video/mp4');
 
 				if (req.query.download === 'true') {
-					res.setHeader('Content-disposition', 'attachment; filename=' + moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss'));
+					res.setHeader('Content-disposition', 'attachment; filename=' + moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss') + '.mp4');
 				}
 
 				res.end(file);
@@ -173,12 +173,15 @@ Promise.all([
 			// If arming and there is either no arming, or the latest arming is already over, then create a new one..
 			if (arm && (!arming || moment(arming.end).isBefore(now))) {
 				return db.Arming.build({
-					start: new Date()
+					start: new Date(),
+					startedByUserId: req.session.userId
 				}).save();
 
 			// Otherwise, if we're ending arming and there is an arming, and either end isn't set or is set till later...
 			} else if (!arm && arming && (!arming.end || moment(arming.end).isAfter(now))) {
 				arming.end = new Date();
+				arming.endedByUserId = req.session.userId;
+
 				return arming.save();
 			}
 		}).then(function () {
@@ -201,6 +204,14 @@ Promise.all([
 	});
 
 	api.get('/history', function (req, res, next) {
+		var amount = isNaN(Number(req.params.limit))
+			? 100
+			: Number(req.params.limit);
+
+		var timestamp = isNaN(Number(req.params.timestamp))
+			? moment()
+			: moment.unix(Number(req.params.timestamp));
+
 		function dictionaryGenerator(key) {
 			return function (array) {
 				var dictionary = {};
@@ -214,20 +225,56 @@ Promise.all([
 		}
 
 		Promise.all([
-			db.Event.findAll({
-				include: [db.Recording],
-				order: [['timestamp', 'ASC']]
-			}),
+			Promise.all([
+				db.Event.findAll({
+					include: [db.Recording],
+					order: [['timestamp', 'DESC']],
+					limit: amount,
+					where: {
+						timestamp: {
+							$lt: timestamp.toDate()
+						}
+					}
+				}),
 
-			db.Arming.findAll({
-				order: [['start', 'ASC']]
+				db.Arming.findAll({
+					order: [['start', 'DESC']],
+					limit: Math.ceil(amount / 2),
+					where: {
+						start: {
+							$lt: timestamp.toDate()
+						}
+					}
+				})
+			]).then(([events, armings]) => {
+				var eventsTimestamps = events.map(x => moment(x.timestamp));
+				var armingsTimestamps = armings.reduce((ar, curr) => ar.push(moment(curr.start), moment(curr.end)) && ar, []);
+				var eventsIdx = eventsTimestamps.length -1;
+				var armingsIdx = armingsTimestamps.length - 1;
+				var max = Math.min(eventsTimestamps.length + armingsTimestamps.length, amount);
+
+				while (eventsIdx + 1 + armingsIdx + 1 !== max) {
+					if (eventsTimestamps[eventsIdx].isBefore(armingsTimestamps[armingsIdx])) {
+						eventsIdx--;
+					} else {
+						armingsIdx--;
+					}
+				}
+
+				events.splice(eventsIdx);
+				armings.splice(armingsIdx);
+
+				return [
+					events,
+					armings,
+					armingsIdx % 2 === 1,
+					eventsTimestamps[eventsIdx].isBefore(armingsTimestamps[armingsIdx]) ? eventsTimestamps[eventsIdx] : armingsTimestamps[armingsIdx]
+				];
 			}),
 
 			db.User.findAll().then(dictionaryGenerator('id')),
 			db.Camera.findAll().then(dictionaryGenerator('id'))
-		]).then(function ([events, armings, usersLookup, camerasLookup]) {
-			var lastEventTimestamp = moment.unix(0);
-			var isArmed = false;
+		]).then(function ([[events, armings, isArmed, lastEventTimestamp], usersLookup, camerasLookup]) {
 			var output = [];
 
 			function outputArmingsAndDisarmingsBetween(from, to) {
@@ -235,27 +282,26 @@ Promise.all([
 					var thisArming = armings[i];
 					var thisArmingStart = moment(thisArming.start);
 					var thisArmingEnd = moment(thisArming.end);
-					var thisArmingUser = usersLookup[thisArming.userId];
 
-					if (thisArmingStart.isAfter(from) && thisArmingStart.isBefore(to)) {
+					if (thisArmingStart.isSameOrAfter(from) && thisArmingStart.isBefore(to)) {
 						output.push({
 							type: 'ARMING',
 							timestamp: thisArmingStart.toISOString(),
 							user: {
-								id: thisArmingUser.id,
-								firstName: thisArmingUser.firstName
+								id: usersLookup[thisArming.startedByUserId].id,
+								firstName: usersLookup[thisArming.startedByUserId].firstName
 							}
 						});
 						isArmed = true;
 					}
 
-					if (thisArmingEnd.isAfter(from) && thisArmingEnd.isBefore(to)) {
+					if (thisArmingEnd.isSameOrAfter(from) && thisArmingEnd.isBefore(to)) {
 						output.push({
 							type: 'DISARMING',
 							timestamp: thisArmingEnd.toISOString(),
 							user: {
-								id: thisArmingUser.id,
-								firstName: thisArmingUser.firstName
+								id: usersLookup[thisArming.endedByUserId].id,
+								firstName: usersLookup[thisArming.endedByUserId].firstName
 							}
 						});
 						isArmed = false;
@@ -263,7 +309,8 @@ Promise.all([
 				}
 			}
 
-			for (var event of events) {
+			for (var i=events.length-1;i>=0;i--) {
+				var event = events[i];
 				var eventTimestamp = moment(event.timestamp);
 				var eventCamera = camerasLookup[event.cameraId];
 
@@ -285,7 +332,7 @@ Promise.all([
 				lastEventTimestamp = eventTimestamp;
 			}
 
-			outputArmingsAndDisarmingsBetween(lastEventTimestamp, moment());
+			outputArmingsAndDisarmingsBetween(lastEventTimestamp, timestamp);
 			res.json(output.reverse()).end();
 		}).catch(next);
 	});
