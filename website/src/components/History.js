@@ -1,10 +1,9 @@
 import React, { Component } from 'react';
 import Day from './Day';
 import session from '../session';
-import './Home.css';
 import moment from 'moment';
 
-class Home extends Component {
+class History extends Component {
 	constructor(props) {
 		super(props);
 		this.state = { days: [] };
@@ -18,7 +17,7 @@ class Home extends Component {
 	}
 
 	init() {
-		session.getList().then((events) => {
+		session.getHistory().then((events) => {
 			var days = [];
 			var currentDay = null;
 
@@ -43,4 +42,4 @@ class Home extends Component {
 	}
 }
 
-export default Home;
+export default History;

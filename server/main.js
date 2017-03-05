@@ -200,7 +200,7 @@ Promise.all([
 		});
 	});
 
-	api.get('/list', function (req, res, next) {
+	api.get('/history', function (req, res, next) {
 		function dictionaryGenerator(key) {
 			return function (array) {
 				var dictionary = {};
@@ -287,84 +287,6 @@ Promise.all([
 
 			outputArmingsAndDisarmingsBetween(lastEventTimestamp, moment());
 			res.json(output.reverse()).end();
-		}).catch(next);
-	});
-
-	api.get('/history', function (req, res, next) {
-		function groupEvents(events) {
-			var ret = [];
-
-			for (var i=0;i<events.length;i++) {
-				var now = moment(events[i].timestamp).startOf('minute');
-				var end = now;
-
-				for (var j=i+1;j<events.length;j++) {
-					var then = moment(events[j].timestamp).startOf('minute');
-
-					if (end.add(1, 'minute').isSameOrAfter(then)) {
-						end = then;
-					} else {
-						break;
-					}
-				}
-
-				ret.push({
-					from: now.toISOString(),
-					to: end.endOf('minute').toISOString()
-				});
-
-				i = j;
-			}
-
-			return ret;
-		}
-
-		function getArmingsForDay(armings, startOfDate) {
-			var ret = [];
-			var endOfDate = moment(startOfDate).endOf('day');
-
-			for (var i=0;i<armings.length;i++) {
-				var startOfArming = moment(armings[i].start);
-				var endOfArming = moment(armings[i].end);
-
-				if (startOfArming.isAfter(endOfDate)) {
-					break;
-				}
-
-				if (endOfArming.isBefore(startOfDate)) {
-					continue;
-				}
-
-				// Otherwise, this arming passes somepart through the day...
-				ret.push({
-					from: (startOfArming.isBefore(startOfDate) ? startOfDate : startOfArming).toISOString(),
-					to: (endOfArming.isBefore(endOfDate) ? endOfArming : endOfDate).toISOString()
-				});
-			}
-
-			return ret;
-		}
-
-		Promise.all([
-			db.Event.findAll(),
-			db.Arming.findAll()
-		]).then(function (results) {
-			var [events, armings] = results;
-			var ret = [];
-
-			for (var i=0;i<14;i++) {
-				var date = moment().startOf('day').subtract(i, 'days');
-
-				ret.push({
-					date: date.format('YYYY-MM-DD'),
-					events: groupEvents(events.filter(function (event) {
-						return moment(event.timestamp).startOf('day').isSame(date);
-					})),
-					armings: getArmingsForDay(armings, date)
-				});
-			}
-
-			res.json(ret).end();
 		}).catch(next);
 	});
 

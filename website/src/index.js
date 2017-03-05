@@ -2,8 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './components/App';
 import Home from './components/Home';
-import List from './components/List';
-import Timeline from './components/Timeline';
+import History from './components/History';
 import Login from './components/Login';
 import './index.css';
 import '../node_modules/bootstrap/dist/css/bootstrap.css';
@@ -13,9 +12,8 @@ ReactDOM.render(
 	<Router history={browserHistory}>
 		<Route path="/" component={App}>
 			<Route component={Home}>
-				<IndexRedirect to="/timeline" />
-				<Route path="timeline" component={Timeline} />
-				<Route path="list" component={List} />
+				<IndexRedirect to="/history" />
+				<Route path="history" component={History} />
 			</Route>
 			<Route path="login" component={Login} />
 		</Route>
