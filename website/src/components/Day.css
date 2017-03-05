@@ -2,6 +2,11 @@ div.day {
 	margin-top: 30px;
 }
 
+div.day h5.day-date {
+	margin-left: 10px;
+	margin-bottom: 10px;
+}
+
 div.day li.day-activity {
 	padding: 0.25em 0.5em;
 }

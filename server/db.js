@@ -10,15 +10,11 @@ module.exports = new Promise(function (resolve, reject) {
 		var Notification = require('./models/notification').create(sequelize);
 
 		Event.belongsTo(Camera, { foreign_key: 'cameraId' });
-		Camera.hasMany(Event, { foreign_key: 'cameraId' });
-
 		Notification.belongsTo(Event, { foreign_key: 'eventId'});
-		Event.hasMany(Notification, { foreign_key: 'eventId'});
-
 		Notification.belongsTo(User, { foreign_key: 'userId'});
-		User.hasMany(Notification, { foreign_key: 'userId'});
-
-		Recording.belongsTo(Event, { foreign_key: 'userId'});
+		Recording.belongsTo(Event, { foreign_key: 'eventId'});
+		Event.hasOne(Recording, { foreign_key: 'eventId'});
+		Arming.belongsTo(User, { foreign_key: 'userId' });
 
 		resolve({
 			User: User,

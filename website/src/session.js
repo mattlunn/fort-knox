@@ -20,6 +20,10 @@ class Session {
 		return this.proxyLoginStatus(jQuery.get('/api/history'));
 	}
 
+	getList() {
+		return this.proxyLoginStatus(jQuery.get('/api/list'));
+	}
+
 	getArmedState() {
 		return this.proxyLoginStatus(jQuery.get('/api/armed'));
 	}

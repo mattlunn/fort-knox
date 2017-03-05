@@ -66,16 +66,21 @@ Promise.all([
 		return db.Recording.findOne({
 			where: {
 				id: req.params.id
-			}
+			},
+			include: [db.Event]
 		}).then((recording) => {
 			if (recording == null)
 				return Promise.reject('route');
 
-			return storage.serve(recording.recording);
-		}).then((file) => {
-			res
-				.type('video/mp4')
-				.end(file);
+			return storage.serve(recording.recording).then((file) => {
+				res.type('video/mp4');
+
+				if (req.query.download === 'true') {
+					res.setHeader('Content-disposition', 'attachment; filename=' + moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss'));
+				}
+
+				res.end(file);
+			});
 		}).catch(next);
 	});
 
@@ -195,7 +200,97 @@ Promise.all([
 		});
 	});
 
-	api.get('/history', function (req, res) {
+	api.get('/list', function (req, res, next) {
+		function dictionaryGenerator(key) {
+			return function (array) {
+				var dictionary = {};
+
+				for (var i=0;i<array.length;i++) {
+					dictionary[array[i][key]] = array[i];
+				}
+
+				return dictionary;
+			}
+		}
+
+		Promise.all([
+			db.Event.findAll({
+				include: [db.Recording],
+				order: [['timestamp', 'ASC']]
+			}),
+
+			db.Arming.findAll({
+				order: [['start', 'ASC']]
+			}),
+
+			db.User.findAll().then(dictionaryGenerator('id')),
+			db.Camera.findAll().then(dictionaryGenerator('id'))
+		]).then(function ([events, armings, usersLookup, camerasLookup]) {
+			var lastEventTimestamp = moment.unix(0);
+			var isArmed = false;
+			var output = [];
+
+			function outputArmingsAndDisarmingsBetween(from, to) {
+				for (var i=0;i<armings.length;i++) {
+					var thisArming = armings[i];
+					var thisArmingStart = moment(thisArming.start);
+					var thisArmingEnd = moment(thisArming.end);
+					var thisArmingUser = usersLookup[thisArming.userId];
+
+					if (thisArmingStart.isAfter(from) && thisArmingStart.isBefore(to)) {
+						output.push({
+							type: 'ARMING',
+							timestamp: thisArmingStart.toISOString(),
+							user: {
+								id: thisArmingUser.id,
+								firstName: thisArmingUser.firstName
+							}
+						});
+						isArmed = true;
+					}
+
+					if (thisArmingEnd.isAfter(from) && thisArmingEnd.isBefore(to)) {
+						output.push({
+							type: 'DISARMING',
+							timestamp: thisArmingEnd.toISOString(),
+							user: {
+								id: thisArmingUser.id,
+								firstName: thisArmingUser.firstName
+							}
+						});
+						isArmed = false;
+					}
+				}
+			}
+
+			for (var event of events) {
+				var eventTimestamp = moment(event.timestamp);
+				var eventCamera = camerasLookup[event.cameraId];
+
+				outputArmingsAndDisarmingsBetween(lastEventTimestamp, eventTimestamp);
+				output.push({
+					id: event.id,
+					type: 'EVENT',
+					timestamp: eventTimestamp.toISOString(),
+					device: {
+						id: eventCamera.id,
+						name: eventCamera.friendlyName
+					},
+					isArmed: isArmed,
+					recording: event.recording ? {
+						id: event.recording.id
+					} : null
+				});
+
+				lastEventTimestamp = eventTimestamp;
+			}
+
+			outputArmingsAndDisarmingsBetween(lastEventTimestamp, moment());
+			res.json(output.reverse()).end();
+		}).catch(next);
+	});
+
+	api.get('/history', function (req, res, next) {
 		function groupEvents(events) {
 			var ret = [];
 
@@ -270,10 +365,7 @@ Promise.all([
 			}
 
 			res.json(ret).end();
-		}, function (err) {
-			console.log(err);
-			res.status(500).end(err);
-		});
+		}).catch(next);
 	});
 
 	api.use(function (req, res, next) {
