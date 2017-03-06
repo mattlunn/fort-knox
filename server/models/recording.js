@@ -17,6 +17,9 @@ module.exports.create = function (sequelize) {
 		end: {
 			type: Sequelize.DATE,
 			allowNull: false
+		},
+		size: {
+			type: Sequelize.INTEGER.UNSIGNED
 		}
 	});
 };

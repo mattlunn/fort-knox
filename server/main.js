@@ -60,10 +60,10 @@ Promise.all([
 		}
 	});
 
-	api.use(authenticate);
+	//api.use(authenticate);
 
 	api.get('/recording/:id', function (req, res, next) {
-		return db.Recording.findOne({
+		db.Recording.findOne({
 			where: {
 				id: req.params.id
 			},
@@ -72,11 +72,19 @@ Promise.all([
 			if (recording == null)
 				return Promise.reject('route');
 
-			return storage.serve(recording.recording).then((file) => {
-				res.type('video/mp4');
+			var range = req.range(recording.size)[0];
+			var chunk = range.end - range.start;
 
+			res.writeHead(range ? 206 : 200, {
+				'Accept-Ranges': 'bytes',
+				'Content-Type': 'video/mp4',
+				'Content-Range': 'bytes ' + range.start + '-' + range.end + '/' + recording.size,
+				'Content-Length': chunk
+			})
+
+			return storage.serve(recording.recording, range.start, range.end).then((file) => {
 				if (req.query.download === 'true') {
-					res.setHeader('Content-disposition', 'attachment; filename=' + moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss') + '.mp4');
+					res.download(moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss') + '.mp4');
 				}
 
 				res.end(file);
@@ -133,6 +141,7 @@ Promise.all([
 							return db.Recording.build({
 								eventId: event.id,
 								recording: handle,
+								size: req.file.length,
 								start: moment(now.subtract(10, 's')).toDate(),
 								end: now.toDate()
 							}).save();

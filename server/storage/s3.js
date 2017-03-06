@@ -32,10 +32,19 @@ S3.prototype.store = function (buffer) {
 	});
 };
 
-S3.prototype.serve = function (handle) {
+S3.prototype.serve = function (handle, start, end) {
+	var range;
+
+	if (start === null && end === null) {
+		range = '0-';
+	} else {
+		range = (start === null ? '' : start) + '-' + (end === null ? '' : end);
+	}
+
 	return new Promise((resolve, reject) => {
 		this.client.getObject({
-			Key: handle
+			Key: handle,
+			Range: 'bytes=' + range
 		}, (err, data) => {
 			if (err) {
 				reject(err);
