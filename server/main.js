@@ -141,7 +141,7 @@ Promise.all([
 							return db.Recording.build({
 								eventId: event.id,
 								recording: handle,
-								size: req.file.length,
+								size: req.file.buffer.length,
 								start: moment(now.subtract(10, 's')).toDate(),
 								end: now.toDate()
 							}).save();
