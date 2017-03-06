@@ -72,14 +72,25 @@ Promise.all([
 			if (recording == null)
 				return Promise.reject('route');
 
-			var range = req.range(recording.size)[0];
+			var ranges = req.range(recording.size);
+			var range;
+
+			if (ranges && ranges.length === 1) {
+				range = ranges[0];
+			} else {
+				range = {
+					start: 0,
+					end: recording.size - 1
+				};
+			}
+
 			var chunk = range.end - range.start;
 
 			res.writeHead(range ? 206 : 200, {
 				'Accept-Ranges': 'bytes',
 				'Content-Type': 'video/mp4',
 				'Content-Range': 'bytes ' + range.start + '-' + range.end + '/' + recording.size,
-				'Content-Length': chunk
+				'Content-Length': chunk + 1
 			})
 
 			return storage.serve(recording.recording, range.start, range.end).then((file) => {
