@@ -73,11 +73,14 @@ Promise.all([
 				return Promise.reject('route');
 
 			var ranges = req.range(recording.size);
+			var status;
 			var range;
 
 			if (ranges && ranges.length === 1) {
 				range = ranges[0];
+				status = 206;
 			} else {
+				status = 200;
 				range = {
 					start: 0,
 					end: recording.size - 1
@@ -86,7 +89,7 @@ Promise.all([
 
 			var chunk = range.end - range.start;
 
-			res.writeHead(range ? 206 : 200, {
+			res.writeHead(status, {
 				'Accept-Ranges': 'bytes',
 				'Content-Type': 'video/mp4',
 				'Content-Range': 'bytes ' + range.start + '-' + range.end + '/' + recording.size,
