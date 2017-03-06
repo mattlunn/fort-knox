@@ -60,7 +60,7 @@ Promise.all([
 		}
 	});
 
-	//api.use(authenticate);
+	api.use(authenticate);
 
 	api.get('/recording/:id', function (req, res, next) {
 		db.Recording.findOne({
