@@ -89,6 +89,10 @@ Promise.all([
 
 			var chunk = range.end - range.start;
 
+			if (req.query.download === 'true') {
+				res.set('Content-disposition', 'attachment; filename=' + moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss') + '.mp4');
+			}
+
 			res.writeHead(status, {
 				'Accept-Ranges': 'bytes',
 				'Content-Type': 'video/mp4',
@@ -97,10 +101,6 @@ Promise.all([
 			})
 
 			return storage.serve(recording.recording, range.start, range.end).then((file) => {
-				if (req.query.download === 'true') {
-					res.download(moment(recording.event.timestamp).format('YYYY-MM-DD HH:mm:ss') + '.mp4');
-				}
-
 				res.end(file);
 			});
 		}).catch(next);
