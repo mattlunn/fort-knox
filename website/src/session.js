@@ -16,8 +16,11 @@ class Session {
 		});
 	}
 
-	getHistory() {
-		return this.proxyLoginStatus(jQuery.get('/api/history'));
+	getHistory(timestamp) {
+		console.log('Loading for ' + timestamp);
+		return this.proxyLoginStatus(jQuery.get('/api/history', {
+			timestamp: timestamp
+		}));
 	}
 
 	getArmedState() {

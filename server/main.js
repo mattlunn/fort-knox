@@ -227,13 +227,13 @@ Promise.all([
 	});
 
 	api.get('/history', function (req, res, next) {
-		var amount = isNaN(Number(req.params.limit))
+		var amount = isNaN(Number(req.query.limit))
 			? 50
-			: Number(req.params.limit);
+			: Number(req.query.limit);
 
-		var timestamp = isNaN(Number(req.params.timestamp))
+		var timestamp = isNaN(Number(req.query.timestamp))
 			? moment()
-			: moment.unix(Number(req.params.timestamp));
+			: moment.unix(Number(req.query.timestamp));
 
 		function dictionaryGenerator(key) {
 			return function (array) {
@@ -275,6 +275,7 @@ Promise.all([
 				var eventsIdx = eventsTimestamps.length -1;
 				var armingsIdx = armingsTimestamps.length - 1;
 				var max = Math.min(eventsTimestamps.length + armingsTimestamps.length, amount);
+				var lastEventTimestamp = moment(timestamp);
 
 				while (eventsIdx + 1 + armingsIdx + 1 !== max) {
 					if (eventsTimestamps[eventsIdx].isBefore(armingsTimestamps[armingsIdx])) {
@@ -287,11 +288,19 @@ Promise.all([
 				events.splice(eventsIdx + 1);
 				armings.splice(Math.floor(armingsIdx / 2) + 1);
 
+				if (eventsTimestamps.length) {
+					if (eventsTimestamps[eventsIdx].isBefore(armingsTimestamps[armingsIdx])) {
+						lastEventTimestamp = eventsTimestamps[eventsIdx];
+					} else {
+						lastEventTimestamp = armingsTimestamps[armingsIdx];
+					}
+				}
+
 				return [
 					events,
 					armings,
 					armingsIdx % 2 === 0,
-					eventsTimestamps[eventsIdx].isBefore(armingsTimestamps[armingsIdx]) ? eventsTimestamps[eventsIdx] : armingsTimestamps[armingsIdx]
+					lastEventTimestamp
 				];
 			}),
 
