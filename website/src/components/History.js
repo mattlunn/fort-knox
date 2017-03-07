@@ -4,6 +4,7 @@ import session from '../session';
 import moment from 'moment';
 import $ from 'jquery';
 import './History.css';
+import '../font-awesome/css/font-awesome.css';
 
 class History extends Component {
 	constructor(props) {
@@ -13,7 +14,8 @@ class History extends Component {
 
 	render() {
 		return (<div className="history-container">
-			{this.state.days.map((day) => <Day key={day.day} day={day.day} events={day.events} />)}
+			<div>{this.state.days.map((day) => <Day key={day.day} day={day.day} events={day.events} />)}</div>
+			<div className={'history-loading-spinner ' + (this.state.isLoading ? '' : 'hidden')} ref="loadingSpinner"><i className="fa fa-spinner fa-spin" aria-hidden="true"></i></div>
 		</div>);
 	}
 
@@ -26,7 +28,7 @@ class History extends Component {
 	}
 
 	onScroll(e) {
-		if ($(window).scrollTop() + $(window).height() > $(document).height() - 100 && this.loader === null) {
+		if ($(window).scrollTop() + $(window).height() > $(document).height() - 100) {
 			var day = this.state.days[this.state.days.length - 1];
 
 			this.loadHistory(moment(day.events[day.events.length - 1].timestamp));
@@ -34,16 +36,25 @@ class History extends Component {
 	}
 
 	init() {
-		this.state = { days: [] };
-		this.loader = null;
-		this.onScroll = this.onScroll.bind(this);
+		this.state = { days: [], isLoading: false };
+		this.isLoading = false;
 
+		this.onScroll = this.onScroll.bind(this);
 		this.loadHistory(moment());
 	}
 
 	loadHistory(timestamp) {
-		if (this.loader === null) {
-			this.loader = session.getHistory(timestamp.format('X')).then((events) => {
+		var setLoadingState = function (isLoading) {
+			this.isLoading = isLoading;
+			this.setState({
+				isLoading: isLoading
+			});
+		}.bind(this);
+
+		if (!this.isLoading) {
+			setLoadingState(true);
+
+			session.getHistory(timestamp.format('X')).then((events) => {
 				var days = this.state.days;
 
 				var currentDay = days.length
@@ -64,13 +75,11 @@ class History extends Component {
 					currentDay = thisDay;
 				}
 
-				console.log(days);
-
 				this.setState({
 					days: days
 				});
 			}).always(() => {
-				this.loader = null;
+				setLoadingState(false);
 			});
 		}
 	}

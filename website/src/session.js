@@ -17,7 +17,6 @@ class Session {
 	}
 
 	getHistory(timestamp) {
-		console.log('Loading for ' + timestamp);
 		return this.proxyLoginStatus(jQuery.get('/api/history', {
 			timestamp: timestamp
 		}));

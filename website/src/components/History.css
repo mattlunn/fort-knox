@@ -1,3 +1,9 @@
-.history-container {
-	margin-bottom: 40px;
+.history-loading-spinner {
+	margin: 20px 0;
+	text-align: center;
+	font-size: 1.6em;
+}
+
+.hidden {
+	visibility: hidden;
 }
