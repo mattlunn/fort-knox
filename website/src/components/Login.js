@@ -43,7 +43,7 @@ class Login extends Component {
 						<form onSubmit={this.doLogin}>
 							<div className="form-group row">
 								<label>Email</label>
-								<input className="form-control" name="username" type="text" placeholder="e.g. user@email.com" onChange={this.handleChange} />
+								<input className="form-control" name="username" type="email" placeholder="e.g. user@email.com" onChange={this.handleChange} />
 							</div>
 							<div className="form-group row">
 								<label>Password</label>
