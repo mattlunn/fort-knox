@@ -310,7 +310,7 @@ Promise.all([
 			var output = [];
 
 			function outputArmingsAndDisarmingsBetween(from, to) {
-				for (var i=0;i<armings.length;i++) {
+				for (var i=armings.length-1;i>=0;i--) {
 					var thisArming = armings[i];
 					var thisArmingStart = moment(thisArming.start);
 					var thisArmingEnd = moment(thisArming.end);
