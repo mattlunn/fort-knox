@@ -27,7 +27,10 @@ Promise.all([
 	app.use(session({
 		secret: config.cookie_secret,
 		saveUninitialized: false,
-		resave: false
+		resave: false,
+		cookie: {
+			maxAge: 60 * 60 * 25 * 365 * 1000
+		}
 	}));
 
 	app.use('/static', express.static('../website/build/static'));
