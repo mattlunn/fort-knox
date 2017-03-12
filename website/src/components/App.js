@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import jQuery from 'jquery';
 import session from '../session';
 import './App.css';
 
@@ -8,16 +9,26 @@ class App extends Component {
 
 		this.state = { showLoggedInNavComponents: false };
 		this.toggleArming = this.toggleArming.bind(this);
-
-		session.getArmedState().then((armed) => {
-			this.setState({
-				armed: armed
-			});
-		});
+		this.getLoggedInDetails();
 
 		session.onLoginStateChanged((isLoggedIn) => {
+			if (isLoggedIn) {
+				this.getLoggedInDetails();
+			} else {
+				this.setState({
+					showLoggedInNavComponents: false
+				});
+			}
+		});
+	}
+
+	getLoggedInDetails() {
+		return jQuery.when(
+			session.getArmedState()
+		).then((armed) => {
 			this.setState({
-				showLoggedInNavComponents: isLoggedIn
+				showLoggedInNavComponents: true,
+				armed: armed
 			});
 		});
 	}
