@@ -2,6 +2,7 @@ var util = require('util');
 var uuid = require('uuid/v4');
 var express = require('express');
 var session = require('express-session');
+var FileStore = require('session-file-store')(session);
 var bodyParser = require('body-parser');
 var moment = require('moment');
 var multer = require('multer');
@@ -25,7 +26,10 @@ Promise.all([
 	}
 
 	app.use(session({
-		secret: config.cookie_secret,
+		store: new FileStore({
+			path: config.session.path
+		}),
+		secret: config.session.secret,
 		saveUninitialized: false,
 		resave: false,
 		cookie: {

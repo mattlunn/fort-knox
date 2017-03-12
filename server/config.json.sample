@@ -37,7 +37,10 @@
 		"sending_number": "+4471234567789"
 	},
 
-	"cookie_secret": "randomString",
+	"session": {
+		"secret": "randomString",
+		"path": "../sessions"
+	},
 
 	"port": 3001,
 	"api_key": "secureString"
