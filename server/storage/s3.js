@@ -14,6 +14,20 @@ function S3(options) {
 	});
 }
 
+S3.prototype.remove = function (handle) {
+	return new Promise((resolve, reject) => {
+		this.client.deleteObject({
+			Key: handle
+		}, (err, data) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(true);
+			}
+		});
+	});
+};
+
 S3.prototype.store = function (buffer) {
 	var id = uuid();
 

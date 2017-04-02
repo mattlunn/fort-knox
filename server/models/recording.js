@@ -7,7 +7,7 @@ module.exports.create = function (sequelize) {
 			allowNull: false
 		},
 		recording: {
-			type: Sequelize.BLOB('medium'),
+			type: Sequelize.STRING,
 			allowNull: false
 		},
 		start: {

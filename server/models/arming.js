@@ -1,7 +1,8 @@
 var Sequelize = require('sequelize');
+var moment = require('moment');
 
 module.exports.create = function (sequelize) {
-	return sequelize.define('arming', {
+	var arming = sequelize.define('arming', {
 		start: {
 			type: Sequelize.DATE
 		},
@@ -9,4 +10,19 @@ module.exports.create = function (sequelize) {
 			type: Sequelize.DATE
 		}
 	});
+
+	arming.checkIfIsArmedAt = function (time) {
+		return this.findOne({
+			order: [['start', 'DESC']],
+			where: {
+				start: {
+					$lt: moment(time).toDate()
+				}
+			}
+		}).then((arming) => {
+			return arming && (!arming.end || moment(arming.end).isAfter(time));
+		});
+	};
+
+	return arming;
 };

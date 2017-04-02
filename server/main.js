@@ -17,6 +17,47 @@ Promise.all([
 	require('./db'),
 	require('./storage/' + config.storage_provider).init(config.storage_settings)
 ]).then(([twilio, db, storage]) => {
+	(function removeOldUnarmedRecordings() {
+		var cutoffForUnarmedRecordings = moment().subtract(config.days_to_keep_unarmed_recordings, 'days');
+
+		console.log('Checking for un-armed recordings prior to ' + cutoffForUnarmedRecordings.toISOString());
+
+		db.Recording.findAll({
+			where: {
+				start: {
+					$lt: cutoffForUnarmedRecordings.toDate()
+				}
+			},
+			include: [db.Event]
+		}).then((recordings) => {
+			var promiseChain = Promise.resolve();
+
+			recordings.forEach((recording) => {
+				promiseChain = promiseChain.then(() => {
+					return db.Arming.checkIfIsArmedAt(recording.event.timestamp).then((isArmed) => {
+						if (!isArmed) {
+							console.log('Recording ' + recording.id + ', with handle ' + recording.recording + ' will be deleted...');
+
+							return storage.remove(recording.recording).then(() => {
+								return recording.destroy();
+							}).then(() => {
+								console.log('Recording ' + recording.id + ', with handle ' + recording.recording + ' has been deleted.');
+							});
+						}
+					});
+				});
+			});
+
+			return promiseChain;
+		}).catch((err) => {
+			console.log('An error occurred whilst removing old unarmed recordings');
+			console.log(err);
+		}).then(() => {
+			console.log('Scheduling again...');
+			setTimeout(removeOldUnarmedRecordings, moment.duration(1, 'day').as('milliseconds'));
+		});
+	}());
+
 	function authenticate(req, res, next) {
 		if (req.session.userId || req.query.token === config.api_key) {
 			next();
@@ -137,10 +178,8 @@ Promise.all([
 
 			// Figure out if we're armed or not. If so, load the users which need to be
 			// notified...
-			db.Arming.findOne({
-				order: [['start', 'DESC']]
-			}).then(function (arming) {
-				if (arming && (!arming.end || moment(arming.end).isAfter(now))) {
+			db.Arming.checkIfIsArmedAt(now).then((isArmed) => {
+				if (isArmed) {
 					return db.User.findAll({
 						where: {
 							mobileNumber: {
