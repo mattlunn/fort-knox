@@ -187,9 +187,7 @@ Promise.all([
 
 				return [];
 			})
-		]).then(function (promises) {
-			var [event, users] = promises;
-
+		]).then(function ([event, users]) {
 			return Promise.all([
 				(function () {
 					if (req.file) {
@@ -313,7 +311,7 @@ Promise.all([
 				})
 			]).then(([events, armings]) => {
 				var eventsTimestamps = events.map(x => moment(x.timestamp));
-				var armingsTimestamps = armings.reduce((ar, curr) => ar.push(moment(curr.end || new Date()), moment(curr.start)) && ar, []);
+				var armingsTimestamps = armings.reduce((ar, curr) => [...ar, moment(curr.end || new Date()), moment(curr.start)], []);
 				var eventsIdx = eventsTimestamps.length -1;
 				var armingsIdx = armingsTimestamps.length - 1;
 				var max = Math.min(eventsTimestamps.length + armingsTimestamps.length, amount);
