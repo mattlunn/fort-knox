@@ -21,8 +21,6 @@ Promise.all([
 		if (typeof config.days_to_keep_unarmed_recordings === 'number') {
 			var cutoffForUnarmedRecordings = moment().subtract(config.days_to_keep_unarmed_recordings, 'days');
 
-			console.log('Checking for un-armed recordings prior to ' + cutoffForUnarmedRecordings.toISOString());
-
 			db.Recording.findAll({
 				where: {
 					start: {
@@ -37,12 +35,8 @@ Promise.all([
 					promiseChain = promiseChain.then(() => {
 						return db.Arming.checkIfIsArmedAt(recording.event.timestamp).then((isArmed) => {
 							if (!isArmed) {
-								console.log('Recording ' + recording.id + ', with handle ' + recording.recording + ' will be deleted...');
-
 								return storage.remove(recording.recording).then(() => {
 									return recording.destroy();
-								}).then(() => {
-									console.log('Recording ' + recording.id + ', with handle ' + recording.recording + ' has been deleted.');
 								});
 							}
 						});
@@ -54,11 +48,9 @@ Promise.all([
 				console.log('An error occurred whilst removing old unarmed recordings');
 				console.log(err);
 			}).then(() => {
-				console.log('Scheduling again...');
+				console.log('Old recordings removed. See you again tomorrow...');
 				setTimeout(removeOldUnarmedRecordings, moment.duration(1, 'day').as('milliseconds'));
 			});
-		} else {
-			console.log('config.days_to_keep_unarmed_recordings not set');
 		}
 	}());
 
