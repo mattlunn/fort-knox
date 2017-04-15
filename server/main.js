@@ -74,7 +74,7 @@ Promise.all([
 		}
 	}));
 
-	app.use('/static', express.static('../website/build/static'));
+	app.use('/static', express.static(path.join(__dirname, '..', 'website', 'build', 'static')));
 	app.use('/api', api);
 
 	app.get('/favicon.ico', (req, res) => {
@@ -82,7 +82,7 @@ Promise.all([
 	});
 
 	app.use(function (req, res) {
-		res.sendFile(path.join(__dirname, '../website/build/', 'index.html'));
+		res.sendFile(path.join(__dirname, '..', 'website', 'build', 'index.html'));
 	});
 
 	api.use(bodyParser.urlencoded({ extended: false }));
@@ -409,10 +409,6 @@ Promise.all([
 			outputArmingsAndDisarmingsBetween(lastEventTimestamp, timestamp);
 			res.json(output.reverse()).end();
 		}).catch(next);
-	});
-
-	api.use(function (req, res, next) {
-		res.status(404).end();
 	});
 
 	app.use(function (err, req, res, next) {
