@@ -19,26 +19,35 @@ class Event extends Component {
 	}
 
 	generateClassNameForEvent() {
-		if (this.props.event.type === 'EVENT') {
-			return this.props.event.isArmed ? 'badge-danger' : 'badge-success';
+		switch (this.props.event.type) {
+			case 'MOTION':
+				return this.props.event.isArmed ? 'badge-danger' : 'badge-success';
+			case 'CONNECTION':
+				return 'badge-info';
+			case 'DISCONNECTION':
+				return 'badge-warning';
+			default:
+				return 'badge-plain';
 		}
-
-		return 'badge-plain';
 	}
 
 	generateSummaryForEvent() {
 		switch (this.props.event.type) {
-			case 'EVENT':
+			case 'MOTION':
 				return (<span>Motion detected by&nbsp;<strong>{this.props.event.device.name}</strong></span>);
 			case 'ARMING':
 				return (<span><strong>Armed</strong>&nbsp;{"by " + this.props.event.user.firstName}</span>);
 			case 'DISARMING':
 				return (<span><strong>Disarmed</strong>&nbsp;{"by " + this.props.event.user.firstName}</span>);
+			case 'DISCONNECTION':
+				return (<span>Connection to <strong>{this.props.event.device.name}</strong>&nbsp;has been lost</span>);
+			case 'CONNECTION':
+				return (<span>Connection to <strong>{this.props.event.device.name}</strong>&nbsp;has been restored</span>);
 		}
 	}
 
 	generateLinksForEvent() {
-		if (this.props.event.type === 'EVENT' && this.props.event.recording)
+		if (this.props.event.recording)
 			return (<span><a onClick={this.toggleVideo} href="#" className="card-link">view</a> <a href={"/api/recording/" + this.props.event.recording.id + "?download=true"} className="card-link">download</a></span>);
 
 		return null;

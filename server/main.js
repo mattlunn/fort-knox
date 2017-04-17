@@ -151,43 +151,37 @@ Promise.all([
 	});
 
 	api.post('/event', multer({ storage: multer.memoryStorage() }).single('recording'), function (req, res, next) {
-		var name = req.body.device || 'default';
+		if (typeof req.body.device !== 'string') {
+			return next(new Error('"device" is a required field'));
+		}
+
+		var allowedTypes = ['motion', 'disconnection', 'connection'];
+		if (allowedTypes.indexOf(req.body.type) === -1) {
+			return next(new Error('"type" must be one of "' + allowedTypes.join('", "') + '"'));
+		}
+
+		return next();
+	}, function (req, res, next) {
+		var name = req.body.device;
+		var type = req.body.type;
 		var now = req.body.timestamp ? moment.unix(req.body.timestamp) : moment();
 
-		Promise.all([
-			// Create an event...
-			db.Camera.findOne({
-				where: {
-					machineName: name
-				}
-			}).then(function (camera) {
-				return camera || db.Camera.build({
-					machineName: name,
-					friendlyName: name
-				}).save();
-			}).then(function (camera) {
-				return db.Event.build({
-					timestamp: now.toDate(),
-					cameraId: camera.id
-				}).save();
-			}),
-
-			// Figure out if we're armed or not. If so, load the users which need to be
-			// notified...
-			db.Arming.checkIfIsArmedAt(now).then((isArmed) => {
-				if (isArmed) {
-					return db.User.findAll({
-						where: {
-							mobileNumber: {
-								$ne: null
-							}
-						}
-					});
-				}
-
-				return [];
-			})
-		]).then(function ([event, users]) {
+		db.Camera.findOne({
+			where: {
+				machineName: name
+			}
+		}).then(function (camera) {
+			return camera || db.Camera.build({
+				machineName: name,
+				friendlyName: name
+			}).save();
+		}).then(function (camera) {
+			return db.Event.build({
+				timestamp: now.toDate(),
+				cameraId: camera.id,
+				type: type
+			}).save();
+		}).then(function (event) {
 			return Promise.all([
 				(function () {
 					if (req.file) {
@@ -203,23 +197,52 @@ Promise.all([
 					}
 				}()),
 
-				Promise.all(users.map((user) => {
-					return twilio.notify(
-						user.mobileNumber,
-						util.format(
-							'Hi %s. Sorry to be the bearer of bad news, but your device "%s" has detected motion at %s, soooooo, you might be getting burgled...',
-							user.firstName,
-							name,
-							now.format('HH:mm:ss')
-						)
-					).then(() => {
-						return db.Notification.build({
-							userId: user.id,
-							eventId: event.id,
-							type: 'mobile'
-						}).save();
-					})
-				}))
+				db.User.findAll({
+					where: {
+						mobileNumber: {
+							$ne: null
+						}
+					}
+				}).then((usersToNotify) => {
+					switch (type) {
+						case 'motion':
+							return db.Arming.checkIfIsArmedAt(now).then((isArmed) => {
+								if (isArmed) {
+									return Promise.all(usersToNotify.map((user) => twilio.notify(
+										user.mobileNumber,
+										util.format(
+											'Hi %s. Sorry to be the bearer of bad news, but your device "%s" has detected motion at %s, soooooo, you might be getting burgled...',
+											user.firstName,
+											name,
+											now.format('HH:mm:ss')
+										)
+									).then(() => db.Notification.build({
+										userId: user.id,
+										eventId: event.id,
+										type: 'mobile'
+									}).save())));
+								}
+							});
+						break;
+						case 'connection':
+						case 'disconnection':
+							return Promise.all(usersToNotify.map((user) => twilio.notify(
+								user.mobileNumber,
+								util.format(
+									'Hi %s. The connection to "%s" was %s at %s.',
+									user.firstName,
+									name,
+									type === 'connection' ? 'restored' : 'lost',
+									now.format('HH:mm:ss')
+								)
+							).then(() => db.Notification.build({
+								userId: user.id,
+								eventId: event.id,
+								type: 'mobile'
+							}).save())));
+						break;
+					}
+				})
 			]);
 		}).then(() => {
 			res.end();
@@ -389,7 +412,7 @@ Promise.all([
 				outputArmingsAndDisarmingsBetween(lastEventTimestamp, eventTimestamp);
 				output.push({
 					id: event.id,
-					type: 'EVENT',
+					type: event.type.toUpperCase(),
 					timestamp: eventTimestamp.toISOString(),
 					device: {
 						id: eventCamera.id,
